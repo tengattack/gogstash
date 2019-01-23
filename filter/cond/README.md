@@ -25,6 +25,11 @@ filter:
       - type: add_field
         key: foo
         value: bar
+    # (optional) filter config when condition was not met
+    else_filter:
+      - type: add_field
+        key: foo
+        value: bar2
 ```
 
 ```yaml

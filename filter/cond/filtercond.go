@@ -52,10 +52,12 @@ var (
 type FilterConfig struct {
 	config.FilterConfig
 
-	Condition  string             `json:"condition"` // condition need to be satisfied
-	FilterRaw  []config.ConfigRaw `json:"filter"`    // filters when satisfy the condition
-	filters    []config.TypeFilterConfig
-	expression *govaluate.EvaluableExpression
+	Condition     string             `json:"condition"`   // condition need to be satisfied
+	FilterRaw     []config.ConfigRaw `json:"filter"`      // filters when satisfy the condition
+	ElseFilterRaw []config.ConfigRaw `json:"else_filter"` // filters when does not satisfy the condition
+	filters       []config.TypeFilterConfig
+	elseFilters   []config.TypeFilterConfig
+	expression    *govaluate.EvaluableExpression
 }
 
 // EventParameters pack event's parameters by member function `Get` access
@@ -69,7 +71,8 @@ func (ep *EventParameters) Get(field string) (interface{}, error) {
 		// no nest fields
 		return ep.Event.Get(field), nil
 	}
-	return config.GetFromObject(ep.Event.Extra, field), nil
+	v, _ := ep.Event.GetValue(field)
+	return v, nil
 }
 
 // DefaultFilterConfig returns an FilterConfig struct with default values
@@ -102,6 +105,12 @@ func InitHandler(ctx context.Context, raw *config.ConfigRaw) (config.TypeFilterC
 		goglog.Logger.Warn("filter cond config filters empty, ignored")
 		return &conf, nil
 	}
+	if len(conf.ElseFilterRaw) > 0 {
+		conf.elseFilters, err = config.GetFilters(ctx, conf.ElseFilterRaw)
+		if err != nil {
+			return nil, err
+		}
+	}
 	conf.expression, err = govaluate.NewEvaluableExpressionWithFunctions(conf.Condition, BuiltInFunctions)
 	return &conf, nil
 }
@@ -116,10 +125,18 @@ func (f *FilterConfig) Event(ctx context.Context, event logevent.LogEvent) logev
 			event.AddTag(ErrorTag)
 			return event
 		}
-		if ok, _ := ret.(bool); ok {
-			for _, filter := range f.filters {
-				event = filter.Event(ctx, event)
+		if r, ok := ret.(bool); ok {
+			if r {
+				for _, filter := range f.filters {
+					event = filter.Event(ctx, event)
+				}
+			} else {
+				for _, filter := range f.elseFilters {
+					event = filter.Event(ctx, event)
+				}
 			}
+		} else {
+			goglog.Logger.Warn("filter cond condition returns not a boolean, ignored")
 		}
 	}
 	return event

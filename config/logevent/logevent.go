@@ -79,7 +79,7 @@ func (t LogEvent) getJSONMap() map[string]interface{} {
 		event[key] = value
 	}
 	if len(t.Tags) > 0 {
-		event["tags"] = t.Tags
+		event[TagsField] = t.Tags
 	}
 	return event
 }
@@ -100,6 +100,8 @@ func (t LogEvent) Get(field string) (v interface{}) {
 		v = t.Timestamp
 	case "message":
 		v = t.Message
+	case TagsField:
+		v = t.Tags
 	default:
 		v = t.Extra[field]
 	}
@@ -115,6 +117,9 @@ func (t LogEvent) GetString(field string) string {
 	default:
 		v, ok := getValueFromObject(t.Extra, field)
 		if ok {
+			if s, ok := v.(string); ok {
+				return s
+			}
 			return fmt.Sprintf("%v", v)
 		}
 		return ""
