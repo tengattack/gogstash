@@ -3,6 +3,7 @@ package filtercond
 import (
 	"context"
 	"math/rand"
+	"reflect"
 	"strings"
 
 	"github.com/Knetic/govaluate"
@@ -39,6 +40,26 @@ var (
 			length := len(args[0].(string))
 			return (float64)(length), nil
 		},
+		"map": func(args ...interface{}) (interface{}, error) {
+			if len(args) > 1 {
+				return nil, ErrorBuiltInFunctionParameters1.New(nil, "map")
+			} else if len(args) == 0 {
+				return []interface{}{}, nil
+			}
+
+			s := reflect.ValueOf(args[0])
+			if s.Kind() != reflect.Slice {
+				return nil, ErrorBuiltInFunctionParameters1.New(nil, "map")
+			}
+
+			ret := make([]interface{}, s.Len())
+
+			for i := 0; i < s.Len(); i++ {
+				ret[i] = s.Index(i).Interface()
+			}
+
+			return ret, nil
+		},
 		"rand": func(args ...interface{}) (interface{}, error) {
 			if len(args) > 0 {
 				return nil, ErrorBuiltInFunctionParameters1.New(nil, "rand")
@@ -54,7 +75,7 @@ type FilterConfig struct {
 
 	Condition     string             `json:"condition"`   // condition need to be satisfied
 	FilterRaw     []config.ConfigRaw `json:"filter"`      // filters when satisfy the condition
-	ElseFilterRaw []config.ConfigRaw `json:"else_filter"` // filters when does not satisfy the condition
+	ElseFilterRaw []config.ConfigRaw `json:"else_filter"` // filters when does not met the condition
 	filters       []config.TypeFilterConfig
 	elseFilters   []config.TypeFilterConfig
 	expression    *govaluate.EvaluableExpression

@@ -11,6 +11,7 @@ Built-in functions:
 
 * `empty()` Checks if the argument is `nil`
 * `strlen()` Returns the string argument's length
+* `map()` Maps slice to `[]interface{}`
 * `rand()` Returns a pseudo-random number in `[0.0,1.0)` as a float64
 
 ## Synopsis
