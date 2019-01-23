@@ -67,11 +67,18 @@ func (f *FilterConfig) Event(ctx context.Context, event logevent.LogEvent) logev
 	found := false
 	for _, thisMatch := range f.Match {
 		// grok Parse will success even it doesn't match
-		values, err := f.grk.Parse(thisMatch, message)
+		values, err := f.grk.ParseTyped(thisMatch, message)
 		if err == nil && len(values) > 0 {
 			found = true
 			for key, value := range values {
-				event.SetValue(key, event.Format(value))
+				switch v := value.(type) {
+				case string:
+					event.SetValue(key, event.Format(v))
+				case nil:
+					// pass
+				default:
+					event.SetValue(key, value)
+				}
 			}
 			break
 		}

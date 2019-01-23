@@ -73,8 +73,19 @@ func removeField(obj map[string]interface{}, field string) {
 		return
 	}
 
-	switch child := obj[fieldSplits[0]].(type) {
-	case map[string]interface{}:
-		removeField(child, strings.Join(fieldSplits[1:], "."))
+	for i, key := range fieldSplits {
+		if i >= len(fieldSplits)-1 {
+			delete(obj, key)
+			return
+		} else if node, ok := obj[key]; ok {
+			switch v := node.(type) {
+			case map[string]interface{}:
+				obj = v
+			default:
+				return
+			}
+		} else {
+			break
+		}
 	}
 }
