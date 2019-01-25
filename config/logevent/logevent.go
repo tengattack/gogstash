@@ -8,7 +8,6 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-
 	"github.com/tsaikd/KDGoLib/jsonex"
 )
 
@@ -19,10 +18,35 @@ type LogEvent struct {
 	Extra     map[string]interface{} `json:"-"`
 }
 
+type Config struct {
+	SortMapKeys bool     `yaml:"sort_map_keys"`
+	RemoveField []string `yaml:"remove_field"`
+
+	jsonMarshal       func(v interface{}) ([]byte, error)
+	jsonMarshalIndent func(v interface{}, prefix, indent string) ([]byte, error)
+}
+
 // TagsField is the event tags field name
 const TagsField = "tags"
 
 const timeFormat = `2006-01-02T15:04:05.999999999Z`
+
+var config *Config
+
+// SetConfig for LogEvent
+func SetConfig(c *Config) {
+	config = c
+	json := jsoniter.Config{
+		SortMapKeys:            c.SortMapKeys,
+		ValidateJsonRawMessage: false,
+	}.Froze()
+	config.jsonMarshal = json.Marshal
+	config.jsonMarshalIndent = jsonex.MarshalIndent
+}
+
+func init() {
+	SetConfig(&Config{SortMapKeys: false})
+}
 
 func appendIfMissing(slice []string, s string) []string {
 	for _, ele := range slice {
@@ -81,17 +105,20 @@ func (t LogEvent) getJSONMap() map[string]interface{} {
 	if len(t.Tags) > 0 {
 		event[TagsField] = t.Tags
 	}
+	for _, field := range config.RemoveField {
+		removeField(event, field)
+	}
 	return event
 }
 
 func (t LogEvent) MarshalJSON() (data []byte, err error) {
 	event := t.getJSONMap()
-	return jsoniter.Marshal(event)
+	return config.jsonMarshal(event)
 }
 
 func (t LogEvent) MarshalIndent() (data []byte, err error) {
 	event := t.getJSONMap()
-	return jsonex.MarshalIndent(event, "", "\t")
+	return config.jsonMarshalIndent(event, "", "\t")
 }
 
 func (t LogEvent) Get(field string) (v interface{}) {
@@ -137,6 +164,10 @@ func (t *LogEvent) SetValue(field string, v interface{}) bool {
 	return setValueToObject(t.Extra, field, v)
 }
 
+func (t *LogEvent) Remove(field string) bool {
+	return removeField(t.Extra, field)
+}
+
 func getValueFromObject(obj map[string]interface{}, field string) (interface{}, bool) {
 	fieldSplits := strings.Split(field, ".")
 	for i, key := range fieldSplits {
@@ -176,6 +207,26 @@ func setValueToObject(obj map[string]interface{}, field string, v interface{}) b
 		} else {
 			obj[key] = map[string]interface{}{}
 			obj = obj[key].(map[string]interface{})
+		}
+	}
+	return false
+}
+
+func removeField(obj map[string]interface{}, field string) bool {
+	fieldSplits := strings.Split(field, ".")
+	for i, key := range fieldSplits {
+		if i >= len(fieldSplits)-1 {
+			delete(obj, key)
+			return true
+		} else if node, ok := obj[key]; ok {
+			switch v := node.(type) {
+			case map[string]interface{}:
+				obj = v
+			default:
+				return false
+			}
+		} else {
+			break
 		}
 	}
 	return false
