@@ -56,12 +56,14 @@ filter:
 		Extra: map[string]interface{}{
 			"agent": uagent,
 			"user_agent": map[string]interface{}{
-				"device":  "Other",
-				"major":   "71",
-				"minor":   "0",
-				"os":      "Windows",
-				"os_name": "Windows",
-				"patch":   "3578",
+				"device":   "Other",
+				"major":    "71",
+				"minor":    "0",
+				"name":     "Chrome",
+				"os":       "Windows",
+				"os_name":  "Windows",
+				"os_major": "7",
+				"patch":    "3578",
 			},
 		},
 	}

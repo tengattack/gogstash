@@ -19,10 +19,11 @@ const ErrorTag = "gogstash_filter_grok_error"
 type FilterConfig struct {
 	config.FilterConfig
 
-	PatternsPath      string   `json:"patterns_path"`       // path to patterns file
-	Match             []string `json:"match"`               // match pattern
-	Source            string   `json:"source"`              // source message field name
-	RemoveEmptyValues bool     `json:"remove_empty_values"` // remove empty values
+	PatternsPath      string            `json:"patterns_path"`       // path to patterns file
+	Patterns          map[string]string `json:"patterns"`            // pattern definitions
+	Match             []string          `json:"match"`               // match pattern
+	Source            string            `json:"source"`              // source message field name
+	RemoveEmptyValues bool              `json:"remove_empty_values"` // remove empty values
 
 	grk *grok.Grok
 }
@@ -36,6 +37,7 @@ func DefaultFilterConfig() FilterConfig {
 			},
 		},
 		PatternsPath:      "",
+		Patterns:          nil,
 		Match:             []string{"%{COMMONAPACHELOG}"},
 		Source:            "message",
 		RemoveEmptyValues: true,
@@ -59,6 +61,9 @@ func InitHandler(ctx context.Context, raw *config.ConfigRaw) (config.TypeFilterC
 	}
 	if conf.PatternsPath != "" {
 		g.AddPatternsFromPath(conf.PatternsPath)
+	}
+	if conf.Patterns != nil {
+		g.AddPatternsFromMap(conf.Patterns)
 	}
 
 	conf.grk = g
