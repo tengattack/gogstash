@@ -3,10 +3,10 @@ package filtergrok
 import (
 	"context"
 
+	"github.com/tengattack/grok"
 	"github.com/tsaikd/gogstash/config"
 	"github.com/tsaikd/gogstash/config/goglog"
 	"github.com/tsaikd/gogstash/config/logevent"
-	"github.com/vjeantet/grok"
 )
 
 // ModuleName is the name used in config file
