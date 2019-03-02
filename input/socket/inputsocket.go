@@ -3,6 +3,7 @@ package inputsocket
 import (
 	"bufio"
 	"context"
+	"errors"
 	"io"
 	"net"
 	"os"
@@ -28,9 +29,10 @@ type InputConfig struct {
 	Socket string `json:"socket"` // Type of socket, must be one of ["tcp", "udp", "unix", "unixpacket"].
 	// For TCP or UDP, address must have the form `host:port`.
 	// For Unix networks, the address must be a file system path.
-	Address    string `json:"address"`
-	ReusePort  bool   `json:"reuseport"`
-	BufferSize int    `json:"buffer_size"`
+	Address            string `json:"address"`
+	ReusePort          bool   `json:"reuseport"`
+	BufferSize         int    `json:"buffer_size"`
+	ReceiveBufferBytes int    `json:"receive_buffer_bytes"`
 }
 
 // DefaultInputConfig returns an InputConfig struct with default values
@@ -41,7 +43,8 @@ func DefaultInputConfig() InputConfig {
 				Type: ModuleName,
 			},
 		},
-		BufferSize: 4096,
+		BufferSize:         4096,
+		ReceiveBufferBytes: 0,
 	}
 }
 
@@ -118,6 +121,14 @@ func (i *InputConfig) Start(ctx context.Context, msgChan chan<- logevent.LogEven
 		if err != nil {
 			return err
 		}
+		if i.ReceiveBufferBytes > 0 {
+			if udpc, ok := conn.(*net.UDPConn); ok {
+				err = udpc.SetReadBuffer(i.ReceiveBufferBytes)
+				if err != nil {
+					logger.Warnf("Unable to set receive_buffer_bytes to desired size: %v", err)
+				}
+			}
+		}
 		return i.handleUDP(ctx, conn, msgChan)
 	default:
 		return ErrorUnknownSocketType1.New(nil, i.Socket)
@@ -139,6 +150,19 @@ func (i *InputConfig) Start(ctx context.Context, msgChan chan<- logevent.LogEven
 				return ErrorSocketAccept.New(err)
 			}
 			func(conn net.Conn) {
+				if i.ReceiveBufferBytes > 0 {
+					switch c := conn.(type) {
+					case *net.TCPConn:
+						err = c.SetReadBuffer(i.ReceiveBufferBytes)
+					case *net.UnixConn:
+						err = c.SetReadBuffer(i.ReceiveBufferBytes)
+					default:
+						err = errors.New("unknown conn type")
+					}
+					if err != nil {
+						logger.Warnf("Unable to set receive_buffer_bytes to desired size: %v", err)
+					}
+				}
 				eg.Go(func() error {
 					defer conn.Close()
 					i.parse(ctx, conn, msgChan)

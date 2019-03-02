@@ -19,7 +19,13 @@ Input event message should end with new line (`\n`).
 			"address": "localhost:9999",
 
 			// (optional) SO_REUSEPORT applied or not, default: false
-			"reuseport": false
+			"reuseport": false,
+
+			// (optional) The packet size to read from the network, default: 4096
+			"buffer_size": 4096,
+
+			// (optional) The socket receive buffer size in bytes.
+			"receive_buffer_bytes": 0
 		}
 	]
 }
